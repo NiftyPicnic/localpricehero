@@ -1,6 +1,7 @@
 <template>
   <div class="slot-machine">
     <div class="reel">
+      <!-- Location -->
       <div class="arrow up" @mouseenter="startScroll('location', 'up')" @mouseleave="stopScroll">
         &uarr;
       </div>
@@ -11,6 +12,7 @@
     </div>
 
     <div class="reel">
+      <!-- Size -->
       <div class="arrow up" @mouseenter="startScroll('size', 'up')" @mouseleave="stopScroll">
         &uarr;
       </div>
@@ -21,13 +23,21 @@
     </div>
 
     <div class="reel">
+      <!-- Price -->
+      <div class="arrow up" @mouseenter="startScroll('price', 'up')" @mouseleave="stopScroll">
+        &uarr;
+      </div>
       <div class="variable price">{{ computedPrice }}</div>
+      <div class="arrow down" @mouseenter="startScroll('price', 'down')" @mouseleave="stopScroll">
+        &darr;
+      </div>
     </div>
   </div>
 </template>
 
 <script>
 import axios from 'axios';
+import { data } from '../../mock-backend/data.js'; // Import the entire data object
 
 export default {
   data() {
@@ -37,9 +47,14 @@ export default {
       selectedLocation: null,
       selectedSize: null,
       prices: {},
+      consolidatedPrices: data.consolidatedPrices,
+      selectedPrice: null,
       scrollDirection: null,
       scrollInterval: null,
-      scrollSpeed: 200, // Adjusted scroll speed
+      scrollSpeed: 200,
+      currentPrice: null,
+      allPriceCombinations: [],
+      currentCombinationIndex: 0, // Index to keep track of the current combination
     };
   },
   computed: {
@@ -50,20 +65,23 @@ export default {
       return 'Select Location and Size';
     }
   },
-  created() {
-    this.fetchData();
-  },
+    created() {
+  this.fetchData().then(() => {
+    this.allPriceCombinations = data.allPriceCombinations;
+    this.selectRandomValues(); // Set initial random values
+    // Find the index of the initial combination in the allPriceCombinations array
+    this.currentCombinationIndex = this.allPriceCombinations.findIndex(comb => 
+      comb.location === this.selectedLocation && comb.size === this.selectedSize && comb.price === this.selectedPrice);
+  });
+},
   methods: {
     async fetchData() {
-      try {
-        const response = await axios.get('http://localhost:3001/api/data');
-        this.locations = response.data.locations;
-        this.sizes = response.data.sizes;
-        this.prices = this.buildPriceLookup(response.data.prices);
-        this.selectRandomValues();
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      }
+      const response = await axios.get('http://localhost:3001/api/data');
+      this.locations = response.data.locations;
+      this.sizes = response.data.sizes;
+      this.prices = this.buildPriceLookup(response.data.prices);
+      this.allPriceCombinations = data.allPriceCombinations;
+      this.selectRandomValues();
     },
     buildPriceLookup(priceData) {
       const prices = {};
@@ -73,51 +91,102 @@ export default {
       return prices;
     },
     startScroll(variable, direction) {
-      this.scrollDirection = direction;
+    this.scrollDirection = direction;
+    if (variable === 'price') {
+      // Handle price scrolling
+      this.scrollInterval = setInterval(this.scrollPrice, this.scrollSpeed);
+    } else {
+      // Handle location and size scrolling
       this.scrollInterval = setInterval(() => {
-        let selectedValue;
         if (variable === 'location') {
-          selectedValue = this.selectedLocation;
-        } else {
-          selectedValue = this.selectedSize;
-        }
-        const currentIndex = variable === 'location' ? this.locations.indexOf(selectedValue) : this.sizes.indexOf(selectedValue);
-        if (currentIndex !== -1) {
-          let newIndex;
-          if (this.scrollDirection === 'up') {
-            newIndex = currentIndex - 1;
-            if (newIndex < 0) {
-              newIndex = variable === 'location' ? this.locations.length - 1 : this.sizes.length - 1;
-            }
-          } else {
-            newIndex = currentIndex + 1;
-            if (newIndex >= (variable === 'location' ? this.locations.length : this.sizes.length)) {
-              newIndex = 0;
-            }
-          }
-          if (variable === 'location') {
-            this.selectedLocation = this.locations[newIndex];
-          } else {
-            this.selectedSize = this.sizes[newIndex];
-          }
+          this.scrollLocation();
+        } else if (variable === 'size') {
+          this.scrollSize();
         }
       }, this.scrollSpeed);
-    },
+    }
+  },
     stopScroll() {
       clearInterval(this.scrollInterval);
+      this.scrollInterval = null;
     },
-    selectRandomValues() {
-      const randomLocationIndex = Math.floor(Math.random() * this.locations.length);
-      const randomSizeIndex = Math.floor(Math.random() * this.sizes.length);
-      this.selectedLocation = this.locations[randomLocationIndex];
-      this.selectedSize = this.sizes[randomSizeIndex];
+    scrollLocation() {
+      const currentIndex = this.locations.indexOf(this.selectedLocation);
+      const newIndex = this.scrollDirection === 'up' ? (currentIndex > 0 ? currentIndex - 1 : this.locations.length - 1) : (currentIndex < this.locations.length - 1 ? currentIndex + 1 : 0);
+      this.selectedLocation = this.locations[newIndex];
+      this.updateSelectedPrice();
+    },
+    scrollSize() {
+  const currentIndex = this.sizes.indexOf(this.selectedSize);
+  let newIndex;
+
+  if (this.scrollDirection === 'up') {
+    // When scrolling up, move to the next larger size or stop at the bottom
+    newIndex = currentIndex < this.sizes.length - 1 ? currentIndex + 1 : currentIndex;
+  } else {
+    // When scrolling down, move to the next smaller size or stop at the top
+    newIndex = currentIndex > 0 ? currentIndex - 1 : currentIndex;
+  }
+
+  this.selectedSize = this.sizes[newIndex];
+  this.updateSelectedPrice();
+},
+
+     scrollPrice() {
+  if (!this.allPriceCombinations.length) return;
+
+  let newCombinationIndex = -1;
+  if (this.scrollDirection === 'up') {
+    // Find the next combination with a higher price
+    newCombinationIndex = this.allPriceCombinations.findIndex(
+      (comb, index) => parseFloat(comb.price.replace(/[^0-9.-]+/g,"")) > parseFloat(this.selectedPrice.replace(/[^0-9.-]+/g,"")) && index > this.currentCombinationIndex
+    );
+  } else {
+    // Find the previous combination with a lower price, starting from the end of the list
+    for (let i = this.currentCombinationIndex - 1; i >= 0; i--) {
+      if (parseFloat(this.allPriceCombinations[i].price.replace(/[^0-9.-]+/g,"")) < parseFloat(this.selectedPrice.replace(/[^0-9.-]+/g,""))) {
+        newCombinationIndex = i;
+        break;
+      }
     }
   }
+
+  // If a new combination is found, update the selection
+  if (newCombinationIndex !== -1) {
+    this.currentCombinationIndex = newCombinationIndex;
+    const newCombination = this.allPriceCombinations[newCombinationIndex];
+    this.selectedLocation = newCombination.location;
+    this.selectedSize = newCombination.size;
+    this.selectedPrice = newCombination.price;
+  } else {
+    // Stop scrolling if no new combination is found
+    this.stopScroll();
+  }
+},
+
+    updateSelectedPrice() {
+  if (this.selectedLocation && this.selectedSize) {
+    this.selectedPrice = this.prices[this.selectedLocation][this.selectedSize];
+  } else {
+    this.selectedPrice = 'Select Location and Size';
+  }
+},
+
+    selectRandomValues() {
+      const randomLocationIndex = Math.floor(Math.random() * this.locations.length);
+      const randomSizeIndex
+    = Math.floor(Math.random() * this.sizes.length);
+      this.selectedLocation = this.locations[randomLocationIndex];
+      this.selectedSize = this.sizes[randomSizeIndex];
+      this.updateSelectedPrice();
+},
+// Add other methods as needed
+}
 };
 </script>
 
 <style scoped>
-/* Add your custom styles here */
+
 .slot-machine {
   display: flex;
   justify-content: space-around;
@@ -127,7 +196,7 @@ export default {
 .reel {
   text-align: center;
   padding: 20px;
-  flex: 1; /* Equal distribution of space */
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -136,7 +205,7 @@ export default {
 .variable {
   font-size: 18px;
   margin-bottom: 10px;
-  margin-top: 10px; /* Adjusted margin-top to move the content down a bit */
+  margin-top: 10px;
 }
 
 .arrow {
