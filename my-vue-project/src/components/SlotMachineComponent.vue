@@ -48,7 +48,7 @@ export default {
       selectedSize: null,
       prices: {},
       consolidatedPrices: data.consolidatedPrices,
-      selectedPrice: null,
+      selectedPrice: '',
       scrollDirection: null,
       scrollInterval: null,
       scrollSpeed: 200,
@@ -68,28 +68,62 @@ export default {
     created() {
   this.fetchData().then(() => {
     this.allPriceCombinations = data.allPriceCombinations;
-    this.selectRandomValues(); // Set initial random values
-    // Find the index of the initial combination in the allPriceCombinations array
-    this.currentCombinationIndex = this.allPriceCombinations.findIndex(comb => 
-      comb.location === this.selectedLocation && comb.size === this.selectedSize && comb.price === this.selectedPrice);
+    // Ensure that the data is available before calling selectRandomValues
+    if (this.locations && this.locations.length > 0 && this.sizes && this.sizes.length > 0) {
+      this.selectRandomValues();
+      // Find the index of the initial combination in the allPriceCombinations array
+      this.currentCombinationIndex = this.allPriceCombinations.findIndex(comb => 
+        comb.location === this.selectedLocation && comb.size === this.selectedSize && comb.price === this.selectedPrice);
+    } else {
+      console.error("Data is not available for selectRandomValues");
+    }
+  }).catch(error => {
+    console.error("Error in fetchData: ", error);
   });
 },
-  methods: {
-    async fetchData() {
-      const response = await axios.get('http://localhost:3001/api/data');
-      this.locations = response.data.locations;
-      this.sizes = response.data.sizes;
-      this.prices = this.buildPriceLookup(response.data.prices);
-      this.allPriceCombinations = data.allPriceCombinations;
+
+ methods: {
+  async fetchData() {
+  try {
+    const response = await axios.get('http://localhost:3001/api/data');
+    console.log('API Response:', response.data); // Log the entire response
+
+    // Accessing the nested data
+    const apiData = response.data.data;
+
+    console.log('Locations:', apiData.locations);
+    console.log('Sizes:', apiData.sizes);
+    console.log('Prices:', apiData.prices);
+    console.log('All Price Combinations:', apiData.allPriceCombinations);
+
+    if (apiData && apiData.locations && apiData.sizes && apiData.prices) {
+      this.locations = apiData.locations;
+      this.sizes = apiData.sizes;
+      this.prices = this.buildPriceLookup(apiData.prices);
+      this.allPriceCombinations = apiData.allPriceCombinations || [];
+
       this.selectRandomValues();
-    },
+    } else {
+      console.error('API response does not contain the expected data');
+    }
+  } catch (error) {
+    console.error('Error fetching data from API:', error);
+  }
+},
+    
     buildPriceLookup(priceData) {
-      const prices = {};
-      priceData.forEach(item => {
-        prices[item.location] = item.prices;
-      });
-      return prices;
-    },
+  const prices = {};
+  if (priceData) {
+    priceData.forEach(item => {
+      prices[item.location] = item.prices;
+    });
+  } else {
+    console.warn('Price data is undefined');
+  }
+  return prices;
+  
+},
+
     startScroll(variable, direction) {
     this.scrollDirection = direction;
     if (variable === 'price') {
@@ -117,7 +151,17 @@ export default {
       this.updateSelectedPrice();
     },
     scrollSize() {
+  if (!this.sizes || this.sizes.length === 0) {
+    console.warn("scrollSize called but sizes are not defined or empty");
+    return; // Exit the function if sizes are not available
+  }
+
   const currentIndex = this.sizes.indexOf(this.selectedSize);
+  if (currentIndex === -1) {
+    console.warn("Current size not found in sizes array");
+    return; // Exit the function if the current size is not found
+  }
+
   let newIndex;
 
   if (this.scrollDirection === 'up') {
@@ -132,8 +176,8 @@ export default {
   this.updateSelectedPrice();
 },
 
-     scrollPrice() {
-  if (!this.allPriceCombinations.length) return;
+    scrollPrice() {
+  if (!this.allPriceCombinations.length || !this.selectedPrice) return;
 
   let newCombinationIndex = -1;
   if (this.scrollDirection === 'up') {
@@ -173,12 +217,16 @@ export default {
 },
 
     selectRandomValues() {
-      const randomLocationIndex = Math.floor(Math.random() * this.locations.length);
-      const randomSizeIndex
-    = Math.floor(Math.random() * this.sizes.length);
-      this.selectedLocation = this.locations[randomLocationIndex];
-      this.selectedSize = this.sizes[randomSizeIndex];
-      this.updateSelectedPrice();
+    if (this.locations && this.locations.length > 0 && this.sizes && this.sizes.length > 0) {
+    const randomLocationIndex = Math.floor(Math.random() * this.locations.length);
+    const randomSizeIndex = Math.floor(Math.random() * this.sizes.length);
+    this.selectedLocation = this.locations[randomLocationIndex];
+    this.selectedSize = this.sizes[randomSizeIndex];
+    this.selectedPrice = this.prices[this.selectedLocation][this.selectedSize] || '';
+    console.log("Selected Values:", this.selectedLocation, this.selectedSize, this.selectedPrice); // Debugging log
+  } else {
+    console.warn("selectRandomValues called before data is available");
+  }
 },
 // Add other methods as needed
 }
