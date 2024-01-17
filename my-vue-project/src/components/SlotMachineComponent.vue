@@ -163,29 +163,31 @@ getNewIndex(currentIndex, array) {
   },
 
     startScroll(variable, direction) {
-      this.scrollDirection = direction;
+  this.scrollDirection = direction;
 
-      if (variable !== this.heldField) {
-        this.genericScroll(variable); // Scroll immediately on click
+  if (variable !== this.heldField) {
+    this.genericScroll(variable); // Scroll immediately on click
 
-        // Start automatic scrolling after 0.5 seconds
-        this.scrollInterval = setTimeout(() => {
-          this.scrollInterval = setInterval(() => {
-            this.genericScroll(variable);
-          }, this.scrollSpeed);
-        }, 500);
-      }
-    },
+    clearTimeout(this.scrollTimeout); // Clear any existing timeout
+    clearInterval(this.scrollInterval); // Clear any existing interval
 
-    stopScroll() {
-      clearTimeout(this.scrollInterval); // Clear the timeout
-      clearInterval(this.scrollInterval); // Clear the interval
-      this.scrollInterval = null;
-    },
-    scrollLocation() {
-    if (this.heldField === 'location') return;
-    this.updateScroll('location');
-  },
+    // Start automatic scrolling after a delay
+    this.scrollTimeout = setTimeout(() => {
+      this.scrollInterval = setInterval(() => {
+        this.genericScroll(variable);
+      }, this.scrollSpeed);
+    }, 500);
+  }
+},
+
+stopScroll() {
+  this.scrollDirection = null;
+  clearTimeout(this.scrollTimeout); // Clear the timeout
+  clearInterval(this.scrollInterval); // Clear the interval
+  this.scrollTimeout = null;
+  this.scrollInterval = null;
+},
+
     scrollSize() {
     if (this.heldField === 'size' || (this.heldField === 'price' && !this.isPriceCombinationAvailable('size'))) return;
     this.updateScroll('size');
@@ -258,28 +260,32 @@ getNewIndex(currentIndex, array) {
     let newIndex;
 
     if (this.heldField === 'price') {
-      // When price is held, adjust scrolling for 'size' and 'location'
-      let validCombinations = this.allPriceCombinations.filter(comb => 
-        comb.price === this.selectedPrice
-      );
+  let validCombinations = this.allPriceCombinations.filter(comb => 
+    comb.price === this.selectedPrice
+  );
 
-      let filteredArray = validCombinations.map(comb => comb[variable]);
-      // Remove duplicates from filteredArray
-      filteredArray = [...new Set(filteredArray)];
+  let filteredArray = validCombinations.map(comb => comb[variable]);
+  // Remove duplicates from filteredArray
+  filteredArray = [...new Set(filteredArray)];
 
-      currentIndex = filteredArray.indexOf(this['selected' + this.capitalizeFirstLetter(variable)]);
-      newIndex = this.getNewIndex(currentIndex, filteredArray);
+  currentIndex = filteredArray.indexOf(this['selected' + this.capitalizeFirstLetter(variable)]);
 
-      if (currentIndex !== -1 && newIndex !== currentIndex) {
-        let newCombination = validCombinations.find(comb => 
-          comb[variable] === filteredArray[newIndex]
-        );
-        if (newCombination) {
-          this.selectedLocation = newCombination.location;
-          this.selectedSize = newCombination.size;
-        }
-      }
-    } else {
+  if (this.scrollDirection === 'up') {
+    newIndex = currentIndex > 0 ? currentIndex - 1 : filteredArray.length - 1;
+  } else if (this.scrollDirection === 'down') {
+    newIndex = currentIndex < filteredArray.length - 1 ? currentIndex + 1 : 0;
+  }
+
+  if (currentIndex !== -1 && newIndex !== currentIndex) {
+    let newCombination = validCombinations.find(comb => 
+      comb[variable] === filteredArray[newIndex]
+    );
+    if (newCombination) {
+      this.selectedLocation = newCombination.location;
+      this.selectedSize = newCombination.size;
+    }
+  }
+} else {
       // Original logic for scrolling when price is not held
       do {
         newIndex = (this.scrollDirection === 'up')
