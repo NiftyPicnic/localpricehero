@@ -3,9 +3,11 @@
     <div class="reel">
       <!-- Location -->
       <div class="arrow up" @mousedown="startScroll('location', 'down')" @mouseup="stopScroll">
-      &uarr;
+        &uarr;
       </div>
-      <div class="variable location">{{ selectedLocation }}</div>
+      <div class="variable location">
+        <span ref="locationRef">{{ selectedLocation }}</span>
+      </div>
       <button class="hold-button" :class="{held: heldField === 'location'}" @click="holdField('location')">Hold</button>
       <div class="arrow down" @mousedown="startScroll('location', 'up')" @mouseup="stopScroll">
         &darr;
@@ -17,7 +19,9 @@
       <div class="arrow up" @mousedown="startScroll('size', 'down')" @mouseup="stopScroll">
         &uarr;
       </div>
-      <div class="variable size">{{ selectedSize }}</div>
+      <div class="variable size">
+        <span ref="sizeRef">{{ selectedSize }}</span>
+      </div>
       <button class="hold-button" :class="{held: heldField === 'size'}" @click="holdField('size')">Hold</button>
       <div class="arrow down" @mousedown="startScroll('size', 'up')" @mouseup="stopScroll">
         &darr;
@@ -29,7 +33,9 @@
       <div class="arrow up" @mousedown="startScroll('price', 'down')" @mouseup="stopScroll">
         &uarr;
       </div>
-      <div class="variable price">{{ computedPrice }}</div>
+      <div class="variable price">
+        <span ref="priceRef">{{ computedPrice }}</span>
+      </div>
       <button class="hold-button" :class="{held: heldField === 'price'}" @click="holdField('price')">Hold</button>
       <div class="arrow down" @mousedown="startScroll('price', 'up')" @mouseup="stopScroll">
         &darr;
@@ -37,6 +43,7 @@
     </div>
   </div>
 </template>
+
 
 <script>
 import axios from 'axios';
@@ -58,6 +65,7 @@ export default {
       scrollSpeed: 200,
       currentPrice: null,
       allPriceCombinations: [],
+      isAnimating: false,
       currentCombinationIndex: 0, // Index to keep track of the current combination
     };
   },
@@ -69,6 +77,24 @@ export default {
       return 'Select Location and Size';
     }
   },
+  watch: {
+  computedPrice(newVal, oldVal) {
+    if (newVal !== oldVal) {
+      this.applySpinEffect(this.$refs.priceRef);
+    }
+  },
+  selectedLocation(newVal, oldVal) {
+    if (newVal !== oldVal) {
+      this.applySpinEffect(this.$refs.locationRef);
+    }
+  },
+  selectedSize(newVal, oldVal) {
+    if (newVal !== oldVal) {
+      this.applySpinEffect(this.$refs.sizeRef);
+    }
+  }
+},
+
     created() {
   this.fetchData().then(() => {
     this.allPriceCombinations = data.allPriceCombinations;
@@ -220,7 +246,7 @@ stopScroll() {
 
     genericScroll(variable) {
   if (this.heldField === variable) return;
-
+  if (this.isAnimating) return;
   if (variable === 'price') {
     let allCombinations = [];
     for (const location in this.prices) {
@@ -303,8 +329,14 @@ stopScroll() {
     // Update price if necessary
     if (this.heldField !== 'price' && variable !== 'price') {
       this.updateSelectedPrice();
+      this.isAnimating = true;
     }
   }
+  // After updating the value, set the isAnimating flag
+  this.isAnimating = true;
+  setTimeout(() => {
+    this.isAnimating = false;
+  }, 500); // Adjust the timeout to match your animation duration
 },
 
 updateForHeldPrice(variable) {
@@ -389,18 +421,21 @@ findMatchingPriceForHeldValue() {
     console.warn("selectRandomValues called before data is available");
   }
 },
+    applySpinEffect(elementRef) {
+  if (!elementRef) return;
+  elementRef.classList.add('spin');
+  setTimeout(() => {
+    elementRef.classList.remove('spin');
+    this.isAnimating = false; // Reset the flag after animation
+  }, 500); // Match this timeout with your animation duration
+}
+  
 // Add other methods as needed
 }
 };
 </script>
 
 <style scoped>
-
-.slot-machine {
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-}
 
 .reel {
   text-align: center;
@@ -411,11 +446,16 @@ findMatchingPriceForHeldValue() {
   align-items: center;
 }
 
+.arrow.up {
+  margin-bottom: 15px; /* Space below the up arrow */
+}
+
+.arrow.down {
+  margin-top: 5px; /* Space above the down arrow */
+}
+
 .variable {
-  font-size: 18px;
-  margin-bottom: 10px;
-  margin-top: 10px;
-  transition: all 0.3s ease-in-out;
+  margin-bottom: 10px; /* Increased space below the variable value */
 }
 
 .arrow {
@@ -435,18 +475,38 @@ findMatchingPriceForHeldValue() {
   transition: background-color 0.2s;
 }
 
+.hold-button {
+  background-color: #eee;
+  border: none;
+  padding: 5px 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  box-shadow: 0 0 0px transparent; /* Transparent box-shadow initially */
+  transition: background-color 0.2s, box-shadow 0.3s ease-in-out;
+}
+
+.hold-button:hover {
+  background-color: #f2f2f2;
+  box-shadow: 0 0 15px #666; /* Box-shadow on hover */
+}
+
 .hold-button.held {
   background-color: #ddd;
   box-shadow: 0 0 15px #666;
-  transition: box-shadow 0.3s ease-in-out;
 }
 
-@keyframes spin {
-  0% { transform: translateY(0); }
-  100% { transform: translateY(-100%); }
+@keyframes spinAnimation {
+  from {
+    transform: rotateX(0deg);
+  }
+  to {
+    transform: rotateX(360deg);
+  }
 }
 
-.reel .variable {
-  animation: spin 0.5s ease-in-out;
+.spin {
+  display: inline-block;
+  animation: spinAnimation 0.5s;
 }
+
 </style>
