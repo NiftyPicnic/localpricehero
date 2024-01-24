@@ -439,7 +439,7 @@ findMatchingPriceForHeldValue() {
 
 .reel {
   text-align: center;
-  padding: 20px;
+  padding: 0px; /* Adjust padding as needed */
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -455,19 +455,21 @@ findMatchingPriceForHeldValue() {
 }
 
 .variable {
+  font-size: 20px;
   margin-bottom: 10px; /* Increased space below the variable value */
 }
 
 .arrow {
-  width: 30px;
-  height: 30px;
+  width: 101px;
+  height: 38px;
   background-color: #eee;
+  border-radius: 6px;
   display: flex;
   justify-content: center;
   align-items: center;
   cursor: pointer;
   font-weight: bold;
-  font-size: 20px;
+  font-size: 28px;
 }
 
 .arrow:hover, .hold-button:hover {
@@ -478,7 +480,8 @@ findMatchingPriceForHeldValue() {
 .hold-button {
   background-color: #eee;
   border: none;
-  padding: 5px 10px;
+  border-radius: 15px;
+  padding: 5px 45px;
   margin-bottom: 10px;
   cursor: pointer;
   box-shadow: 0 0 0px transparent; /* Transparent box-shadow initially */
@@ -500,13 +503,13 @@ findMatchingPriceForHeldValue() {
     transform: rotateX(0deg);
   }
   to {
-    transform: rotateX(360deg);
+    transform: rotateX(720deg);
   }
 }
 
 .spin {
   display: inline-block;
-  animation: spinAnimation 0.5s;
+  animation: spinAnimation 0.3s;
 }
 
 </style>

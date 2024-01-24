@@ -12,18 +12,23 @@
     </header>
 
     <main>
-      <!-- Include SlotMachineComponent -->
+      <!-- SlotMachineComponent -->
       <SlotMachineComponent />
+
+      <!-- CalendarComponent -->
+      <CalendarComponent />
     </main>
   </div>
 </template>
 
 <script>
 import SlotMachineComponent from "@/components/SlotMachineComponent.vue";
+import CalendarComponent from "@/components/CalendarComponent.vue"; // Make sure this path is correct
 
 export default {
   components: {
     SlotMachineComponent,
+    CalendarComponent
   },
 };
 </script>
